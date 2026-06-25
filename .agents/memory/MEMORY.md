@@ -1,0 +1,1 @@
+- [Python ML app on pnpm artifacts](streamlit-on-pnpm-artifacts.md) — no Streamlit kind; use static web + api(/api) artifacts. Run cmd from artifact.toml (cwd=artifact dir, use ../../ paths); lazy-load model.

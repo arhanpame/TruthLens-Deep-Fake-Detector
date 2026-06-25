@@ -1,36 +1,43 @@
-# [Project name]
+# DeepFake Detector
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A web app that classifies an image as **Real** or **AI-Generated** using a Keras CNN. Upload an image or pick a sample, and the app shows the predicted label, a confidence score, and per-class probability bars.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- API server (Python FastAPI) and frontend (React/Vite) run as Replit workflows — do not start them manually with `pnpm dev`.
+  - `artifacts/api-server: API Server` → FastAPI, serves `/api/*`
+  - `artifacts/detector: web` → static React frontend, served at `/`
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Python deps: `tensorflow-cpu`, `fastapi`, `uvicorn`, `python-multipart`, `numpy`, `pillow` (managed via the package tools)
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Backend: Python + FastAPI** (`deepfake/server.py`), run with `uvicorn`
+- **ML: TensorFlow / Keras** — `deepfake/deepfake_detector.keras`
+- Frontend: React + Vite (static), hand-written `App.tsx` calling `/api/*` via `fetch`
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `deepfake/server.py` — FastAPI backend (authoritative). Endpoints: `GET /api/healthz`, `GET /api/samples`, `GET /api/samples/{name}`, `POST /api/predict`, `POST /api/predict-sample/{name}`.
+- `deepfake/helpers.py` — `predict(model, image, class_names)` (resize 128×128, /255 normalize, single sigmoid → P(AI-Generated)).
+- `deepfake/model_setup.py` — `paths` dict (files only) + `dir`; `model_setup.dir` is the base for the `sample_images/` directory.
+- `deepfake/class_names.json` — `["Real", "AI-Generated"]`.
+- `deepfake/sample_images/` — preloaded `AI-Generated_*.png` and `Real_*.png` samples.
+- `artifacts/detector/src/App.tsx` + `src/index.css` — frontend UI and theme.
+- `artifacts/api-server/.replit-artifact/artifact.toml` — backend run config (dev + prod uvicorn).
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Streamlit was abandoned: the pnpm artifact template can't make Streamlit previewable/deployable. Architecture is a static React frontend at `/` + Python FastAPI backend at `/api`, routed by the shared application proxy.
+- The `api-server` artifact's Node/Express scaffold (`src/`) is dead code — the artifact runs `uvicorn` via `artifact.toml`, not the Node `dev` script.
+- The artifact's run command executes with cwd = the artifact directory, so `artifact.toml` uses `--app-dir ../../deepfake` to reach the repo-root model files.
+- Model loads lazily on the first prediction (~2s first inference, then fast). `/api/healthz` reports `model_loaded`.
+- Ground-truth label for samples is inferred from filename prefix (`AI-Generated_*` vs `Real_*`); no DB is used.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Single-page tool: drop/upload an image or click a preloaded sample. The backend runs the Keras model and returns the label (threshold 0.5 on P(AI-Generated)), confidence, raw probability, and inference time, rendered as a verdict card plus Real / AI-Generated probability bars.
 
 ## User preferences
 
